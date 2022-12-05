@@ -30,6 +30,7 @@
 #import <WebRTC/RTCAudioTrack.h>
 #import <WebRTC/RTCVideoTrack.h>
 #import <WebRTC/RTCVideoCapturer.h>
+#import <WebRTC/RTCVideoSource.h>
 #import <WebRTC/RTCCameraVideoCapturer.h>
 #import <WebRTC/RTCDefaultVideoEncoderFactory.h>
 #import <WebRTC/RTCDefaultVideoDecoderFactory.h>
@@ -43,6 +44,8 @@
 #import "NCSettingsController.h"
 #import "NCSignalingController.h"
 #import "NCExternalSignalingController.h"
+
+#import "NextcloudTalk-Swift.h"
 
 static NSString * const kNCMediaStreamId = @"NCMS";
 static NSString * const kNCAudioTrackId = @"NCa0";
@@ -72,7 +75,7 @@ static NSString * const kNCVideoTrackKind = @"video";
 @property (nonatomic, strong) NSMutableDictionary *pendingOffersDict;
 @property (nonatomic, strong) RTCAudioTrack *localAudioTrack;
 @property (nonatomic, strong) RTCVideoTrack *localVideoTrack;
-@property (nonatomic, strong) RTCCameraVideoCapturer *localVideoCapturer;
+@property (nonatomic, strong) RTCVideoCapturer *localVideoCapturer;
 @property (nonatomic, strong) ARDCaptureController *localVideoCaptureController;
 @property (nonatomic, strong) RTCPeerConnectionFactory *peerConnectionFactory;
 @property (nonatomic, strong) NCSignalingController *signalingController;
@@ -80,6 +83,7 @@ static NSString * const kNCVideoTrackKind = @"video";
 @property (nonatomic, strong) TalkAccount *account;
 @property (nonatomic, strong) NSURLSessionTask *joinCallTask;
 @property (nonatomic, strong) NSURLSessionTask *getPeersForCallTask;
+@property (nonatomic, strong) NCCameraController *cameraController;
 
 @end
 
@@ -283,7 +287,7 @@ static NSString * const kNCVideoTrackKind = @"video";
     
     [self cleanCurrentPeerConnections];
     
-    [_localVideoCapturer stopCapture];
+    //[_localVideoCapturer stopCapture];
     _localVideoCapturer = nil;
     _localAudioTrack = nil;
     _localVideoTrack = nil;
@@ -491,7 +495,7 @@ static NSString * const kNCVideoTrackKind = @"video";
 - (void)createLocalVideoTrack
 {
 #if !TARGET_IPHONE_SIMULATOR
-    RTCVideoSource *source = [_peerConnectionFactory videoSource];
+    /*RTCVideoSource *source = [_peerConnectionFactory videoSource];
     _localVideoCapturer = [[RTCCameraVideoCapturer alloc] initWithDelegate:source];
     _localVideoCaptureController = [[ARDCaptureController alloc] initWithCapturer:_localVideoCapturer settings:[[NCSettingsController sharedInstance] videoSettingsModel]];
     [_localVideoCaptureController startCapture];
@@ -502,6 +506,24 @@ static NSString * const kNCVideoTrackKind = @"video";
     [_localVideoTrack setIsEnabled:!_disableVideoAtStart];
     
     [self.delegate callController:self didCreateLocalVideoTrack:_localVideoTrack];
+
+*/
+    if (@available(iOS 15, *)) {
+        RTCVideoSource *videoSource = [_peerConnectionFactory videoSource];
+        RTCVideoCapturer *videoCapturer = [[RTCVideoCapturer alloc] initWithDelegate:videoSource];
+
+        _localVideoCapturer = videoCapturer;
+
+        _localVideoTrack = [_peerConnectionFactory videoTrackWithSource:videoSource trackId:kNCVideoTrackId];
+        [_localVideoTrack setIsEnabled:true];
+
+        [self.delegate callController:self didCreateLocalVideoTrack:_localVideoTrack];
+        
+        self.cameraController = [[NCCameraController alloc] initWithVideoSource:videoSource videoCapturer:videoCapturer];
+
+        [self.delegate callController:self didCreateCameraController:self.cameraController];
+    }
+
 #endif
 }
 
@@ -509,7 +531,7 @@ static NSString * const kNCVideoTrackKind = @"video";
 {
     _localAudioTrack = nil;
     _localVideoTrack = nil;
-    [_localVideoCapturer stopCapture];
+    //[_localVideoCapturer stopCapture];
     _localVideoCapturer = nil;
     
     if ((_userPermissions & NCPermissionCanPublishAudio) != 0 || !_serverSupportsConversationPermissions) {

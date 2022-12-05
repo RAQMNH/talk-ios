@@ -46,6 +46,8 @@
 #import "NCSignalingMessage.h"
 #import "NCUtils.h"
 
+#import "NextcloudTalk-Swift.h"
+
 typedef NS_ENUM(NSInteger, CallState) {
     CallStateJoining,
     CallStateWaitingParticipants,
@@ -1103,8 +1105,8 @@ typedef NS_ENUM(NSInteger, CallState) {
         
         [self.delegate callViewControllerWantsToBeDismissed:self];
         
-        [_localVideoView.captureSession stopRunning];
-        _localVideoView.captureSession = nil;
+        //[_localVideoView.captureSession stopRunning];
+        //_localVideoView.captureSession = nil;
         [_localVideoView setHidden:YES];
         
         dispatch_async(dispatch_get_main_queue(), ^{
@@ -1381,10 +1383,8 @@ typedef NS_ENUM(NSInteger, CallState) {
         }
     });
 }
-
-- (void)callController:(NCCallController *)callController didCreateLocalVideoCapturer:(RTCCameraVideoCapturer *)videoCapturer
-{
-    _localVideoView.captureSession = videoCapturer.captureSession;
+- (void)callController:(NCCallController *)callController didCreateCameraController:(NCCameraController *)cameraController API_AVAILABLE(ios(15)) {
+    cameraController.localView = _localVideoView;
 }
 
 - (void)callController:(NCCallController *)callController userPermissionsChanged:(NSInteger)permissions
